@@ -61,10 +61,7 @@
        (or (naive-in-triangle? triangle point)
            (close-to-side? triangle point))))
 
-(defn- containing-triangles [{:keys [triangles]} point]
-  (filter #(in-triangle? (val %) point) triangles))
-
-(defn- split-triangle [triangles [id {[[x0 y0] [x1 y1] [x2 y2]] :points}] [x y] next-id]
+(defn- split-triangle [triangles id {[[x0 y0] [x1 y1] [x2 y2]] :points} [x y] next-id]
   (-> triangles
       (dissoc id)
       (assoc next-id       {:points [[x0 y0] [x1 y1] [x y]]})
@@ -72,11 +69,15 @@
       (assoc (+ next-id 2) {:points [[x y] [x1 y1] [x2 y2]]})))
 
 (defn add-point [navmesh point]
-  (reduce #(-> %1
-               (update :triangles split-triangle %2 point (:next-id %1))
-               (update :next-id + 3))
-          navmesh
-          (containing-triangles navmesh point)))
+  (reduce-kv
+   (fn [navmesh id triangle]
+     (if (in-triangle? triangle point)
+       (-> navmesh
+           (update :triangles split-triangle id triangle point (:next-id navmesh))
+           (update :next-id + 3))
+       navmesh))
+   navmesh
+   (:triangles navmesh)))
 
 (defn- triangle->svg [{[[x0 y0] [x1 y1] [x2 y2]] :points}]
   (str "<polygon "
