@@ -14,6 +14,4 @@
 (set! (.-innerHTML (js/document.getElementById "navmesh"))
       (wr/navmesh->svg navmesh))
 
-(prn (wr/intersects-line [[0 0] [2 2]] [[2 0] [0 2]]))
-(prn (wr/intersects-line [[0 0] [2 0]] [[0 0] [0 2]]))
-(prn (wr/intersects-line [[0 0] [2 1]] [[2 0] [0 2]]))
+(prn (wr/intersects-triangle {:points [[0 0] [0 2] [2 2]]} [[0 2] [2 0]]))

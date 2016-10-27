@@ -93,6 +93,12 @@
           [(+ ax0 (* t (- ax1 ax0)))
            (+ ay0 (* t (- ay1 ay0)))])))))
 
+(defn intersects-triangle [{[a b c] :points} line]
+  (into #{}
+        (comp (map #(intersects-line line %))
+              (remove nil?))
+        [[a b] [b c] [c a]]))
+
 (defn- triangle->svg [{[[x0 y0] [x1 y1] [x2 y2]] :points}]
   (str "<polygon "
        "points=\"" x0 "," y0 " " x1 "," y1 " " x2 "," y2 "\" "
