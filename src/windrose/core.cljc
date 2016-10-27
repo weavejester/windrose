@@ -79,6 +79,20 @@
    navmesh
    (:triangles navmesh)))
 
+(defn intersects-line [[[ax0 ay0] [ax1 ay1]] [[bx0 by0] [bx1 by1]]]
+  (let [denom (float (- (* (- ax1 ax0) (- by1 by0))
+                        (* (- bx1 bx0) (- ay1 ay0))))]
+    (when-not (zero? denom)
+      (let [s (/ (- (* (- ax1 ax0) (- ay0 by0))
+                    (* (- ay1 ay0) (- ax0 bx0)))
+                 denom)
+            t (/ (- (* (- bx1 bx0) (- ay0 by0))
+                    (* (- by1 by0) (- ax0 bx0)))
+                 denom)]
+        (when (and (<= 0 t 1) (<= 0 s 1))
+          [(+ ax0 (* t (- ax1 ax0)))
+           (+ ay0 (* t (- ay1 ay0)))])))))
+
 (defn- triangle->svg [{[[x0 y0] [x1 y1] [x2 y2]] :points}]
   (str "<polygon "
        "points=\"" x0 "," y0 " " x1 "," y1 " " x2 "," y2 "\" "
