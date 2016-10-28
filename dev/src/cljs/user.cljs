@@ -8,10 +8,9 @@
       (wr/add-point [300 200])
       (wr/add-point [300 100])
       (wr/add-point [400 200])
-      (wr/add-point [350 150])
-      (wr/add-point [400 100])))
+      (wr/add-line [[300 200] [300 100]])
+      (wr/add-line [[300 100] [400 200]])
+      (wr/add-line [[400 200] [300 200]])))
 
 (set! (.-innerHTML (js/document.getElementById "navmesh"))
       (wr/navmesh->svg navmesh))
-
-(prn (wr/intersects-triangle {:points [[0 0] [0 2] [2 2]]} [[0 2] [2 0]]))

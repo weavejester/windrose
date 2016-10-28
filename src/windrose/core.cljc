@@ -68,14 +68,17 @@
       (assoc (+ next-id 1) {:points [[x0 y0] [x y] [x2 y2]]})
       (assoc (+ next-id 2) {:points [[x y] [x1 y1] [x2 y2]]})))
 
+(defn- add-point-to-triangle [navmesh id triangle point]
+  (-> navmesh
+      (update :triangles split-triangle id triangle point (:next-id navmesh))
+      (update :next-id + 3)))
+
 (defn add-point [navmesh point]
   (reduce-kv
    (fn [navmesh id triangle]
-     (if (in-triangle? triangle point)
-       (-> navmesh
-           (update :triangles split-triangle id triangle point (:next-id navmesh))
-           (update :next-id + 3))
-       navmesh))
+     (cond-> navmesh
+       (in-triangle? triangle point)
+       (add-point-to-triangle id triangle point)))
    navmesh
    (:triangles navmesh)))
 
@@ -98,6 +101,15 @@
         (comp (map #(intersects-line line %))
               (remove nil?))
         [[a b] [b c] [c a]]))
+
+(defn add-line [navmesh line]
+  (reduce-kv
+   (fn [navmesh id triangle]
+     (if-let [points (intersects-triangle triangle line)]
+       (reduce #(add-point-to-triangle %1 id triangle %2) navmesh points)
+       navmesh))
+   navmesh
+   (:triangles navmesh)))
 
 (defn- triangle->svg [{[[x0 y0] [x1 y1] [x2 y2]] :points}]
   (str "<polygon "
