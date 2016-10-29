@@ -32,12 +32,15 @@
          (<= 0 b 1)
          (<= 0 c 1))))
 
-(defn- distance-squared-to-side [[[x0 y0] [x1 y1]] [x y]]
-  (let [dx   (- x1 x0)
-        dy   (- y1 y0)
-        dist (+ (* dx dx) (* dy dy))
-        dot  (/ (+ (* (- x x0) dx)
-                   (* (- y y0) dy))
+(defn- distance-squared [[x0 y0] [x1 y1]]
+  (let [dx (- x1 x0)
+        dy (- y1 y0)]
+    (+ (* dx dx) (* dy dy))))
+
+(defn- distance-squared-to-side [[[x0 y0 :as a] [x1 y1 :as b]] [x y]]
+  (let [dist (distance-squared a b)
+        dot  (/ (+ (* (- x x0) (- x1 x0))
+                   (* (- y y0) (- y1 y0)))
                 dist)]
     (cond
       (neg? dot)
@@ -50,6 +53,12 @@
       :else
       (+ (* (- x x1) (- x x1))
          (* (- y y1) (- y y1))))))
+
+(defn- close-to-point? [a b]
+  (or (= a b) (<= (distance-squared a b) error-margin-squared)))
+
+(defn- close-to-corner? [triangle point]
+  (some #(close-to-point? point %) (:points triangle)))
 
 (defn- close-to-side? [{[a b c] :points} point]
   (or (<= (distance-squared-to-side [a b] point) error-margin-squared)
@@ -69,9 +78,11 @@
       (assoc (+ next-id 2) {:points [[x y] [x1 y1] [x2 y2]]})))
 
 (defn- add-point-to-triangle [navmesh id triangle point]
-  (-> navmesh
-      (update :triangles split-triangle id triangle point (:next-id navmesh))
-      (update :next-id + 3)))
+  (if (close-to-corner? triangle point)
+    navmesh
+    (-> navmesh
+        (update :triangles split-triangle id triangle point (:next-id navmesh))
+        (update :next-id + 3))))
 
 (defn add-point [navmesh point]
   (reduce-kv
