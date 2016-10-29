@@ -111,6 +111,15 @@
    navmesh
    (:triangles navmesh)))
 
+(defn add-triangle [navmesh [a b c]]
+  (-> navmesh
+      (add-point a)
+      (add-point b)
+      (add-point c)
+      (add-line [a b])
+      (add-line [b c])
+      (add-line [c a])))
+
 (defn- triangle->svg [{[[x0 y0] [x1 y1] [x2 y2]] :points}]
   (str "<polygon "
        "points=\"" x0 "," y0 " " x1 "," y1 " " x2 "," y2 "\" "
