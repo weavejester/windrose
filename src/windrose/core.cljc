@@ -146,19 +146,34 @@
    navmesh
    (:triangles navmesh)))
 
-(defn add-triangle [navmesh [a b c]]
+(defn- triangle-midpoint [{[[x0 y0] [x1 y1] [x2 y2]] :points}]
+  [(/ (+ x0 x1 x2) 3.0)
+   (/ (+ y0 y1 y2) 3.0)])
+
+(defn- update-blocked [triangles points]
+  (let [blocking-triangle {:points points}
+        blocked?          #(in-triangle? blocking-triangle (triangle-midpoint %))]
+    (reduce-kv
+     (fn [triangles id triangle]
+       (assoc triangles id (cond-> triangle (blocked? triangle) (assoc :blocked? true))))
+     {}
+     triangles)))
+
+(defn add-triangle [navmesh [a b c :as points]]
   (-> navmesh
       (add-point a)
       (add-point b)
       (add-point c)
       (add-line [a b])
       (add-line [b c])
-      (add-line [c a])))
+      (add-line [c a])
+      (update :triangles update-blocked points)))
 
-(defn- triangle->svg [{[[x0 y0] [x1 y1] [x2 y2]] :points}]
+(defn- triangle->svg [{[[x0 y0] [x1 y1] [x2 y2]] :points, blocked? :blocked?}]
   (str "<polygon "
        "points=\"" x0 "," y0 " " x1 "," y1 " " x2 "," y2 "\" "
-       "style=\"fill:transparent;stroke:black;stroke-width:2\"/>"))
+       "style=\"fill:" (if blocked? "red" "transparent")
+       ";stroke:black;stroke-width:2\"/>"))
 
 (defn navmesh->svg [{[_ _ w h] :area, triangles :triangles}]
   (str "<svg width=\"" w "\" height=\"" h "\">"
