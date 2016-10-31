@@ -60,29 +60,53 @@
 (defn- close-to-corner? [triangle point]
   (some #(close-to-point? point %) (:points triangle)))
 
-(defn- close-to-side? [{[a b c] :points} point]
-  (or (<= (distance-squared-to-side [a b] point) error-margin-squared)
-      (<= (distance-squared-to-side [b c] point) error-margin-squared)
-      (<= (distance-squared-to-side [c a] point) error-margin-squared)))
+(defn- close-to-side [{[a b c] :points} point]
+  (let [close-side #(if (<= (distance-squared-to-side % point) error-margin-squared) %)]
+    (or (close-side [a b])
+        (close-side [b c])
+        (close-side [c a]))))
 
 (defn in-triangle? [triangle point]
   (and (in-bounding-box? triangle point)
        (or (naive-in-triangle? triangle point)
-           (close-to-side? triangle point))))
+           (close-to-side triangle point))))
 
-(defn- split-triangle [triangles id {[[x0 y0] [x1 y1] [x2 y2]] :points} [x y] next-id]
+(defn- project-point-onto-line [[[x0 y0] [x1 y1]] [x y]]
+  (let [dx (- x1 x0)
+        dy (- y1 y0)
+        t  (/ (+ (* (- x x0) dx)
+                 (* (- y y0) dy))
+              (+ (* dx dx)
+                 (* dy dy)))]
+    [(+ x0 (* t dx))
+     (+ y0 (* t dy))]))
+
+(defn- split-triangle-at-side [triangles id {[a b c] :points} p side next-id]
+  (let [p'      (project-point-onto-line side p)
+        points1 (if (= side [a b]) [p' b c] [p' a b])
+        points2 (if (= side [a c]) [p' b c] [p' a c])]
+    (-> triangles
+        (dissoc id)
+        (assoc (+ next-id 0) {:points points1})
+        (assoc (+ next-id 1) {:points points2}))))
+
+(defn- split-triangle-at-point [triangles id {[a b c] :points} p next-id]
   (-> triangles
       (dissoc id)
-      (assoc next-id       {:points [[x0 y0] [x1 y1] [x y]]})
-      (assoc (+ next-id 1) {:points [[x0 y0] [x y] [x2 y2]]})
-      (assoc (+ next-id 2) {:points [[x y] [x1 y1] [x2 y2]]})))
+      (assoc (+ next-id 0) {:points [a b p]})
+      (assoc (+ next-id 1) {:points [a p c]})
+      (assoc (+ next-id 2) {:points [p b c]})))
 
-(defn- add-point-to-triangle [navmesh id triangle point]
+(defn- add-point-to-triangle [{:keys [next-id] :as navmesh} id triangle point]
   (if (close-to-corner? triangle point)
     navmesh
-    (-> navmesh
-        (update :triangles split-triangle id triangle point (:next-id navmesh))
-        (update :next-id + 3))))
+    (if-let [side (close-to-side triangle point)]
+      (-> navmesh
+          (update :triangles split-triangle-at-side id triangle point side next-id)
+          (assoc :next-id (+ next-id 2)))
+      (-> navmesh
+          (update :triangles split-triangle-at-point id triangle point next-id)
+          (assoc :next-id (+ next-id 3))))))
 
 (defn add-point [navmesh point]
   (reduce-kv

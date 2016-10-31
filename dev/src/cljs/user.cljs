@@ -10,3 +10,5 @@
 
 (set! (.-innerHTML (js/document.getElementById "navmesh"))
       (wr/navmesh->svg navmesh))
+
+(println "Number of triangles =" (count (:triangles navmesh)))
