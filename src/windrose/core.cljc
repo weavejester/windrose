@@ -84,7 +84,7 @@
 (defn- split-triangle-at-side [triangles id {[a b c] :points} p side next-id]
   (let [p'      (project-point-onto-line side p)
         points1 (if (= side [a b]) [p' b c] [p' a b])
-        points2 (if (= side [a c]) [p' b c] [p' a c])]
+        points2 (if (= side [c a]) [p' b c] [p' c a])]
     (-> triangles
         (dissoc id)
         (assoc (+ next-id 0) {:points points1})
