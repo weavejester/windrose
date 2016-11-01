@@ -81,21 +81,23 @@
     [(+ x0 (* t dx))
      (+ y0 (* t dy))]))
 
-(defn- split-triangle-at-side [triangles id {[a b c] :points} p side next-id]
+(defn- split-triangle-at-side
+  [triangles id {[a b c] :points, blocked? :blocked?} p side next-id]
   (let [p'      (project-point-onto-line side p)
         points1 (if (= side [a b]) [p' b c] [p' a b])
         points2 (if (= side [c a]) [p' b c] [p' c a])]
     (-> triangles
         (dissoc id)
-        (assoc (+ next-id 0) {:points points1})
-        (assoc (+ next-id 1) {:points points2}))))
+        (assoc (+ next-id 0) {:points points1, :blocked? blocked?})
+        (assoc (+ next-id 1) {:points points2, :blocked? blocked?}))))
 
-(defn- split-triangle-at-point [triangles id {[a b c] :points} p next-id]
+(defn- split-triangle-at-point
+  [triangles id {[a b c] :points, blocked? :blocked?} p next-id]
   (-> triangles
       (dissoc id)
-      (assoc (+ next-id 0) {:points [a b p]})
-      (assoc (+ next-id 1) {:points [a p c]})
-      (assoc (+ next-id 2) {:points [p b c]})))
+      (assoc (+ next-id 0) {:points [a b p], :blocked? blocked?})
+      (assoc (+ next-id 1) {:points [a p c], :blocked? blocked?})
+      (assoc (+ next-id 2) {:points [p b c], :blocked? blocked?})))
 
 (defn- add-point-to-triangle [{:keys [next-id] :as navmesh} id triangle point]
   (if (close-to-corner? triangle point)
