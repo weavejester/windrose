@@ -91,6 +91,11 @@
         (assoc (+ next-id 0) {:points points1, :blocked? blocked?})
         (assoc (+ next-id 1) {:points points2, :blocked? blocked?}))))
 
+(defn- split-at-side [{:keys [next-id] :as navmesh} id triangle point side]
+  (-> navmesh
+      (update :triangles split-triangle-at-side id triangle point side next-id)
+      (assoc :next-id (+ next-id 2))))
+
 (defn- split-triangle-at-point
   [triangles id {[a b c] :points, blocked? :blocked?} p next-id]
   (-> triangles
@@ -99,16 +104,17 @@
       (assoc (+ next-id 1) {:points [a p c], :blocked? blocked?})
       (assoc (+ next-id 2) {:points [p b c], :blocked? blocked?})))
 
-(defn- add-point-to-triangle [{:keys [next-id] :as navmesh} id triangle point]
+(defn- split-at-point [{:keys [next-id] :as navmesh} id triangle point]
+  (-> navmesh
+      (update :triangles split-triangle-at-point id triangle point next-id)
+      (assoc :next-id (+ next-id 3))))
+
+(defn- add-point-to-triangle [navmesh id triangle point]
   (if (close-to-corner? triangle point)
     navmesh
     (if-let [side (close-to-side triangle point)]
-      (-> navmesh
-          (update :triangles split-triangle-at-side id triangle point side next-id)
-          (assoc :next-id (+ next-id 2)))
-      (-> navmesh
-          (update :triangles split-triangle-at-point id triangle point next-id)
-          (assoc :next-id (+ next-id 3))))))
+      (split-at-side navmesh id triangle point side)
+      (split-at-point navmesh id triangle point))))
 
 (defn add-point [navmesh point]
   (reduce-kv
@@ -133,18 +139,41 @@
           [(+ ax0 (* t (- ax1 ax0)))
            (+ ay0 (* t (- ay1 ay0)))])))))
 
-(defn intersects-triangle [{[a b c] :points} line]
-  (into #{}
-        (comp (map #(intersects-line line %))
-              (remove nil?))
+(defn- intersects-triangle [{[a b c] :points :as triangle} line]
+  (keep #(when-let [p (intersects-line line %)]
+           (when-not (close-to-corner? triangle p)
+             [p %]))
         [[a b] [b c] [c a]]))
+
+(defn- split-triangle-side-to-side
+  [triangles id {[a b c :as points] :points, :keys [blocked?]} [[p sp] [q sq]] next-id]
+  (let [opposite #(case % [a b] c [b c] a [c a] b)
+        p'       (opposite sp)
+        q'       (opposite sq)
+        r        (first (remove #{p' q'} points))]
+    (-> triangles
+        (dissoc id)
+        (assoc (+ next-id 0) {:points [p p' q'] :blocked? blocked?})
+        (assoc (+ next-id 1) {:points [p q p']  :blocked? blocked?})
+        (assoc (+ next-id 2) {:points [p q r]   :blocked? blocked?}))))
+
+(defn- split-side-to-side
+  [{:keys [next-id] :as navmesh} id triangle [[p _] [q _] :as intersects]]
+  (-> navmesh
+      (update :triangles split-triangle-side-to-side id triangle intersects next-id)
+      (assoc :next-id (+ next-id 3))))
+
+(defn- split-side-to-point [navmesh id triangle [[point side]]]
+  (split-at-side navmesh id triangle point side))
 
 (defn add-line [navmesh line]
   (reduce-kv
    (fn [navmesh id triangle]
-     (if-let [points (intersects-triangle triangle line)]
-       (reduce #(add-point-to-triangle %1 id triangle %2) navmesh points)
-       navmesh))
+     (let [intersects (intersects-triangle triangle line)]
+       (case (count intersects)
+         2 (split-side-to-side navmesh id triangle intersects)
+         1 (split-side-to-point navmesh id triangle intersects)
+         0 navmesh)))
    navmesh
    (:triangles navmesh)))
 
